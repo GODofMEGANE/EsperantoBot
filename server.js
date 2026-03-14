@@ -6,10 +6,11 @@ const fs = require("fs");
 const readline = require("readline");
 require('dotenv').config();
 
+const WAKE_WORD = "saluton";
 const MODEL_PATH = "./model";
-vosk.setLogLevel(0);
-
 const MIC_DEVICE = "hw:3,0";
+
+vosk.setLogLevel(0);
 
 const voskModel = new vosk.Model(MODEL_PATH);
 const voskRec = new vosk.Recognizer({model: voskModel, sampleRate: 16000});
@@ -66,7 +67,10 @@ async function SendToOpenAI(text){
   const res = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     messages:[
-      {role:"system",content:`ユーザーの発話からエアコン操作の命令を判断し、必要ならaccontrolを呼び出す`},
+      {role:"system",content:`
+        Determinu la komandon el la parolo de la uzanto kaj, se necese, voku la funkcion "accontrol".
+        La uzanto parolas Esperanton.
+        `},
       {role:"user",content:text}
     ],
     tools: functionCalling_accontrol,
@@ -104,7 +108,12 @@ micStream.on("data", (data) => {
     const result = voskRec.finalResult();
     if(result.text){
       console.log("heard:",result.text);
-      SendToOpenAI(result.text);
+      if(result.text.includes(WAKE_WORD)){
+        const sentense = result.text.replace(WAKE_WORD, "").trim();
+        if(sentense){
+          SendToOpenAI(sentense);
+        }
+      }
     }
   }
 });
